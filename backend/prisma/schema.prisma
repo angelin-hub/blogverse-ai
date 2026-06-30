@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  name        String
+  email       String    @unique
+  password    String
+  avatar      String?
+  bio         String?
+  website     String?
+  linkedin    String?
+  github      String?
+  twitter     String?
+  location    String?
+  role        Role      @default(USER)
+  banned      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  blogs       Blog[]
+  comments    Comment[]
+  blogLikes   BlogLike[]
+  commentLikes CommentLike[]
+
+  // Follow system (self-referential)
+  followers   Follow[]  @relation("Following")
+  following   Follow[]  @relation("Follower")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#7c3aed")
+  icon        String   @default("📝")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  blogs       Blog[]
+}
+
+model Blog {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  readTime    Int        @default(1)
+  views       Int        @default(0)
+  status      BlogStatus @default(DRAFT)
+  featured    Boolean    @default(false)
+  tags        String[]   @default([])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId  String?
+
+  comments    Comment[]
+  likes       BlogLike[]
+}
+
+model BlogLike {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, blogId])
+}
+
+model Comment {
+  id              String        @id @default(cuid())
+  content         String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  author          User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId        String
+
+  blog            Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId          String
+
+  parentComment   Comment?      @relation("Replies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  parentCommentId String?
+  replies         Comment[]     @relation("Replies")
+
+  likes           CommentLike[]
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+}
